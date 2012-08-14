@@ -1,47 +1,58 @@
 module Tware
+  class UnAuthorizedException < StandardError; end
+
   class TwitterController < ApplicationController
+    before_filter :authorize_user
+
     def create
-      if current_user.nil?
-        #raise error for not logged in user
-      end
-      if has_twitter_provider?
-        # ck = 'GFFg7dijkW8HFuUaKMw'
-        # cs = '1CGVVubQJCeCz8qKQyLdhRnKrUWbbPvc2OMLbHExNI'
-        Twitter.configure do |config|
-          config.consumer_key = ENV['TWITTER_CONSUMER_KEY']
-          config.consumer_secret = ENV['TWITTER_CONSUMER_SECRET']
-          config.oauth_token = user_twitter_oauth_token
-          config.oauth_token_secret = user_twitter_oauth_secret
-        end
-        Twitter.update(params[:twitter][:message])
-        redirect_to  params[:redirect_uri]
+      store_params_in_session
+      twitter_user = TwitterUser.new(current_user)
+
+      if twitter_user.new?
+        redirect_to "/auth/twitter?origin=/twitter_post"
       else
-        redirect_to "/auth/twitter?origin=/twitter_post?redirect_uri=#{params[:redirect_uri]}"
+        begin
+          twitter_user.post_tweet(session[:twitter_message])
+          redirect_url = get_redirect_url('You have successfully tweeted the link', 'notice')
+        rescue Twitter::Error::Forbidden => e
+          redirect_url = get_redirect_url(e.message, 'error')
+        ensure
+          clear_session!(:twitter_message, :step, :return_to)
+          redirect_to redirect_url
+        end
       end
     end
 
     private
-    def has_twitter_provider?
-      twitter_authentication.present?
+    def authorize_user
+      redirect_to get_redirect_url('Please Login before you perform this action', 'error') if current_user.nil?
     end
 
-    def user_twitter_oauth_token
-      twitter_authentication.token_data['token']
+    def store_params_in_session
+      session[:step] ||= params[:step]
+      session[:twitter_message] ||= params[:twitter_message]
+      session[:return_to] ||= params[:return_to]
     end
 
-    def user_twitter_oauth_secret
-      twitter_authentication.token_data['secret']
+    def clear_session!(*args)
+      args.each {|arg| session[arg] = nil}
     end
 
-    def twitter_authentication
-      current_user.authentications.where(:provider => 'twitter').first
+    def get_redirect_url(msg, msg_type)
+      "#{twitter_callback}?#{query_params(msg, msg_type)}"
     end
 
-    # def check?
-    #   # if current_user && current_user.has_twitter_provider?
-    #   return true unless session[:user_id]
-    #   user = User.find(session[:user_id])
-    #   return true unless user.has_twitter_provider?
-    # end
+    def query_params(message, message_type)
+      {
+        :return_to => session[:return_to],
+        :msg => message,
+        :type => message_type,
+        :step => session[:step]
+      }.to_query
+    end
+
+    def twitter_callback
+      'http://localhost:3000/social_network/twitter_callback'
+    end
   end
 end
