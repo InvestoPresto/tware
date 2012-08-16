@@ -1,6 +1,4 @@
 module Tware
-  class UnAuthorizedException < StandardError; end
-
   class TwitterController < ApplicationController
     before_filter :authorize_user
 
@@ -8,18 +6,16 @@ module Tware
       store_params_in_session
       twitter_user = TwitterUser.new(current_user)
 
-      if twitter_user.new?
-        redirect_to "/auth/twitter?origin=/#{twitter_post_path}"
-      else
-        begin
-          twitter_user.post_tweet(session[:twitter_message])
-          redirect_url = get_redirect_url('You have successfully tweeted the link', 'notice')
-        rescue Twitter::Error::Forbidden => e
-          redirect_url = get_redirect_url(e.message, 'error')
-        ensure
-          clear_session!(:twitter_message, :step, :return_to)
-          redirect_to redirect_url
-        end
+      redirect_to "/auth/twitter?origin=/#{twitter_post_path}" and return if twitter_user.new?
+
+      begin
+        twitter_user.post_tweet(session[:twitter_message])
+        redirect_url = get_redirect_url('You have successfully tweeted the link', :notice)
+      rescue Twitter::Error::Forbidden => e
+        redirect_url = get_redirect_url(e.message, :error)
+      ensure
+        clear_session!(:twitter_message, :step, :return_to)
+        redirect_to redirect_url
       end
     end
 
