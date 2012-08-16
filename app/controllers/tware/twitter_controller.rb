@@ -6,7 +6,7 @@ module Tware
       store_params_in_session
       twitter_user = TwitterUser.new(current_user)
 
-      redirect_to "/auth/twitter?origin=/#{twitter_post_path}" and return if twitter_user.new?
+      redirect_to "/auth/twitter?origin=#{twitter_post_path}" and return if twitter_user.new?
 
       begin
         twitter_user.post_tweet(session[:twitter_message])
@@ -30,6 +30,7 @@ module Tware
       session[:step] ||= params[:step]
       session[:twitter_message] ||= params[:twitter_message]
       session[:return_to] ||= params[:return_to]
+      session[:callback_url] ||= params[:callback_url]
     end
 
     def clear_session!(*args)
@@ -50,7 +51,7 @@ module Tware
     end
 
     def twitter_callback
-      'http://localhost:3000/social_network/twitter_callback'
+      session[:callback_url]
     end
   end
 end
