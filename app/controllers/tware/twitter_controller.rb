@@ -9,7 +9,7 @@ module Tware
       twitter_user = TwitterUser.new(current_user)
 
       if twitter_user.new?
-        redirect_to "/auth/twitter?origin=/twitter_post"
+        redirect_to "/auth/twitter?origin=/#{twitter_post_path}"
       else
         begin
           twitter_user.post_tweet(session[:twitter_message])
@@ -25,7 +25,9 @@ module Tware
 
     private
     def authorize_user
-      redirect_to get_redirect_url('Please Login before you perform this action', 'error') if current_user.nil?
+      if current_user.nil?
+        redirect_to get_redirect_url('Please Login before you perform this action', 'error')
+      end
     end
 
     def store_params_in_session
