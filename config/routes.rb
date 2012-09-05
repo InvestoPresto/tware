@@ -1,3 +1,3 @@
 Tware::Engine.routes.draw do
-  post "/twitter_post", :to => "twitter#create"
+  get "/twitter_post", :to => "twitter#create"
 end
